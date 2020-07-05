@@ -8,6 +8,7 @@ const {run_test} = require("../zjsunit/test");
 const {make_zjquery} = require("../zjsunit/zjquery");
 
 zrequire("message_util");
+zrequire("narrow_state");
 
 const noop = () => {};
 set_global(
@@ -16,14 +17,23 @@ set_global(
         silent: true,
     }),
 );
-set_global("hashchange", {
-    exit_overlay: noop,
+set_global("top_left_corner", {
+    narrow_to_recent_topics: noop,
 });
-set_global("overlays", {
-    open_overlay: (opts) => {
-        overlays.close_callback = opts.on_close;
-    },
-    recent_topics_open: () => true,
+set_global("stream_list", {
+    handle_narrow_deactivated: noop,
+});
+set_global("compose_actions", {
+    cancel: noop,
+});
+set_global("narrow", {
+    narrow_title: "",
+});
+set_global("notifications", {
+    redraw_title: noop,
+});
+set_global("message_view_header", {
+    render_title_area: noop,
 });
 
 const people = zrequire("people");
@@ -78,6 +88,9 @@ set_global("ListWidget", {
     },
     hard_redraw: noop,
     render_item: (item) => ListWidget.modifier(item),
+});
+set_global("drafts", {
+    update_draft: noop,
 });
 
 // Custom Data
@@ -288,9 +301,9 @@ function verify_topic_data(all_topics, stream, topic, last_msg_id, participated)
     assert.equal(topic_data.participated, participated);
 }
 
-let rt = zrequire("recent_topics");
+let rt = reset_module("recent_topics");
 
-run_test("test_recent_topics_launch", () => {
+run_test("test_recent_topics_show", () => {
     // Note: unread count and urls are fake,
     // since they are generated in external libraries
     // and are not to be tested here.
@@ -311,13 +324,9 @@ run_test("test_recent_topics_launch", () => {
         return "<recent_topics table stub>";
     });
 
-    rt = reset_module("recent_topics");
     rt.process_messages(messages);
 
-    rt.launch();
-
-    // Test if search text is selected
-    overlays.close_callback();
+    rt.show();
 
     // incorrect topic_key
     assert.equal(rt.inplace_rerender("stream_unknown:topic_unknown"), false);
@@ -349,6 +358,7 @@ run_test("test_filter_all", () => {
     row_data = generate_topic_data([[1, "topic-1", 0, false, true]]);
     i = row_data.length;
     rt = reset_module("recent_topics");
+    rt.is_visible = () => true;
     rt.set_filter("all");
     rt.process_messages([messages[0]]);
 
@@ -387,6 +397,7 @@ run_test("test_filter_unread", () => {
     let i = 0;
 
     rt = reset_module("recent_topics");
+    rt.is_visible = () => true;
 
     stub_templates(() => "<recent_topics table stub>");
     rt.process_messages(messages);
@@ -451,8 +462,10 @@ run_test("test_filter_participated", () => {
     let i = 0;
 
     rt = reset_module("recent_topics");
+    rt.is_visible = () => true;
     stub_templates(() => "<recent_topics table stub>");
     rt.process_messages(messages);
+
     assert.equal(rt.inplace_rerender("1:topic-4"), true);
 
     // Set muted filter
@@ -490,6 +503,7 @@ run_test("test_filter_participated", () => {
 
 run_test("test_update_unread_count", () => {
     rt = reset_module("recent_topics");
+    rt.is_visible = () => true;
     rt.set_filter("all");
     stub_templates(() => "<recent_topics table stub>");
     rt.process_messages(messages);
@@ -504,6 +518,7 @@ stub_templates(() => "<recent_topics table stub>");
 
 run_test("basic assertions", () => {
     rt = reset_module("recent_topics");
+    rt.is_visible = () => true;
     rt.set_filter("all");
     rt.process_messages(messages);
     let all_topics = rt.get();
@@ -581,6 +596,7 @@ run_test("basic assertions", () => {
 
 run_test("test_reify_local_echo_message", () => {
     rt = reset_module("recent_topics");
+    rt.is_visible = () => true;
     rt.set_filter("all");
     rt.process_messages(messages);
 
@@ -688,6 +704,7 @@ run_test("test_topic_edit", () => {
     });
     // NOTE: This test should always run in the end as it modified the messages data.
     rt = reset_module("recent_topics");
+    rt.is_visible = () => true;
     rt.set_filter("all");
     rt.process_messages(messages);
 
@@ -743,6 +760,7 @@ run_test("test_topic_edit", () => {
 
 run_test("test_search", () => {
     rt = reset_module("recent_topics");
+    rt.is_visible = () => true;
     assert.equal(rt.topic_in_search_results("t", "general", "Recent Topic"), true);
     assert.equal(rt.topic_in_search_results("T", "general", "Recent Topic"), true);
     assert.equal(rt.topic_in_search_results("to", "general", "Recent Topic"), true);

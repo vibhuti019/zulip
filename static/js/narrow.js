@@ -765,7 +765,7 @@ function handle_post_narrow_deactivate_processes() {
     message_scroll.update_top_of_narrow_notices(home_msg_list);
 }
 
-exports.deactivate = function () {
+exports.deactivate = function (coming_from_recent_topics = false) {
     // NOTE: Never call this function independently,
     // always use hashchange.go_to_location("") to
     // activate All message narrow.
@@ -782,7 +782,9 @@ exports.deactivate = function () {
       home_msg_list in it.
      */
     search.clear_search_form();
-    if (narrow_state.filter() === undefined) {
+    // Both All messages and Recent Topics have `undefiend` filter.
+    // Return if already in the All message narrow.
+    if (narrow_state.filter() === undefined && !coming_from_recent_topics) {
         return;
     }
     unnarrow_times = {start_time: new Date()};
